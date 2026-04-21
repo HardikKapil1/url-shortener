@@ -5,10 +5,11 @@ import { UrlService } from './url.service';
 import { Url } from './url.entity';
 import { UrlController } from './url.controller';
 import { Click } from '../clicks/clicks.entity';
+ import { RedisProvider } from '../redis/redis.provider';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Url, Click]), UrlModule],
   controllers: [UrlController],
-  providers: [UrlService],
+  providers: [UrlService, RedisProvider],
 })
 export class UrlModule {}

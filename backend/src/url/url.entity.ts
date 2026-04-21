@@ -7,7 +7,7 @@ export class Url {
   id!: string;
 
   @Column({ unique: true })
-  shortUrl!: string;
+  shortCode!: string;
 
   @Column()
   originalUrl!: string;
