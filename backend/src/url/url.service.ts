@@ -34,70 +34,77 @@ export class UrlService {
         throw new Error('Failed to generate unique short code');
     }
 
+    /**
+    * Redirects to the original URL based on the short code
+    * @param shortCode
+    * @param ip
+    * @returns
+    */
+
     async redirect(shortCode: string, ip: string) {
-        // 1. Check cache
-        const cached = await this.redis.get(`url:${shortCode}`);
-        if (cached) {
-            const parsed = JSON.parse(cached);
+    // 1. Check cache
+    const cached = await this.redis.get(`url:${shortCode}`);
+    if (cached) {
+        const parsed = JSON.parse(cached);
 
-            this.trackClick(parsed.id, ip); // async
-            return parsed;
-        }
-
-        // 2. DB
-        const url = await this.urlRepo.findOne({
-            where: { shortCode },
-        });
-
-        if (!url || !url.isActive || (url.expiresAt && url.expiresAt < new Date())) {
-            throw new NotFoundException('URL not found or expired');
-        }
-
-        // 3. Cache it
-        let ttl = 3600;
-
-        if (url.expiresAt) {
-            ttl = Math.max(
-                Math.floor((url.expiresAt.getTime() - Date.now()) / 1000),
-                1,
-            );
-        }
-
-        await this.redis.set(`url:${shortCode}`, JSON.stringify(url), 'EX', ttl);
-
-        this.trackClick(url.id, ip);
-
-        return url;
+        this.trackClick(parsed.id, ip); // async
+        return parsed;
     }
+
+    // 2. DB
+    const url = await this.urlRepo.findOne({
+        where: { shortCode },
+    });
+
+    if (!url || !url.isActive || (url.expiresAt && url.expiresAt < new Date())) {
+        throw new NotFoundException('URL not found or expired');
+    }
+
+    // 3. Cache it
+    let ttl = 3600;
+
+    if (url.expiresAt) {
+        ttl = Math.max(
+            Math.floor((url.expiresAt.getTime() - Date.now()) / 1000),
+            1,
+        );
+    }
+
+    await this.redis.set(`url:${shortCode}`, JSON.stringify(url), 'EX', ttl);
+
+    this.trackClick(url.id, ip);
+
+    return url;
+}
     private trackClick(urlId: string, ip: string) {
-        setImmediate(async () => {
-            try {
-                await this.clickRepo.save({
-                    url: { id: urlId },
-                    ipAddress: ip,
-                    clickedAt: new Date(),
-                });
-            } catch (err) {
-                console.error('Click tracking failed', err);
-            }
-        });
-    }
+    setImmediate(async () => {
+        try {
+            await this.clickRepo.save({
+                url: { id: urlId },
+                ipAddress: ip,
+                clickedAt: new Date(),
+            });
+        } catch (err) {
+            console.error('Click tracking failed', err);
+        }
+    });
+}
 
     async getStats(shortCode: string) {
-        const url = await this.urlRepo.findOne({
-            where: { shortCode },
-        });
+    const url = await this.urlRepo.findOne({
+        where: { shortCode },
+    });
 
-        if (!url) throw new NotFoundException();
+    if (!url) throw new NotFoundException();
 
-        return this.clickRepo
-            .createQueryBuilder('click')
-            .select('click.country', 'country')
-            .addSelect('DATE(click.clickedAt)', 'date')
-            .addSelect('COUNT(*)', 'count')
-            .where('click.urlId = :urlId', { urlId: url.id })
-            .groupBy('click.country')
-            .addGroupBy('date')
-            .getRawMany();
-    }
+    return this.clickRepo
+        .createQueryBuilder('click')
+        .select('click.country', 'country')
+        .addSelect('DATE(click.clickedAt)', 'date')
+        .addSelect('COUNT(*)', 'count')
+        .where('click.urlId = :urlId', { urlId: url.id })
+        .groupBy('click.country')
+        .addGroupBy('date')
+        .getRawMany();
+}
 }
