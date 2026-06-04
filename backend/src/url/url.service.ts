@@ -119,4 +119,20 @@ export class UrlService {
     await this.urlRepo.save(url);
     await this.redis.del(`short:${shortCode}`); // Invalidate cache
   }
+
+  public async getAll(page: number, limit: number) {
+    const [data, total] = await this.urlRepo.findAndCount({
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { createdAt: 'DESC' }, // Show newest URLs first
+    });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 }
