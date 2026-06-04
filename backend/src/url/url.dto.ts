@@ -6,5 +6,5 @@ export class UrlDto {
 
   @IsOptional()
   @IsDateString()
-  expiresAt?: Date;
+  expiresAt?: string;
 }
