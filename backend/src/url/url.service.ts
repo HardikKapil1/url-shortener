@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Url } from './url.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { nanoid } from 'nanoid';
 
 @Injectable()
@@ -19,13 +19,13 @@ export class UrlService {
    */
   public async createShortUrl(
     originalUrl: string,
-    expiresAt: Date | null,
+    expiresAt: Date | undefined,
   ): Promise<Url> {
     const shortCode = nanoid(8);
     const newUrl = this.urlRepo.create({
       originalUrl,
       shortCode,
-      expiresAt,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
       isActive: true,
     });
     return this.urlRepo.save(newUrl);
@@ -36,16 +36,19 @@ export class UrlService {
    * @param shortCode The short code to look up.
    * @returns A promise resolving to the original URL if found and active, otherwise null.
    * */
-  public async redirect(shortCode: string): Promise<string | null> {
+  public async redirect(shortCode: string): Promise<string> {
     const url = await this.urlRepo.findOne({ where: { shortCode } });
+    // 1. Does it exist?
     if (!url || !url.isActive) {
       throw new NotFoundException('Short URL not found or inactive');
     }
 
+    // 2. Now url is guaranteed to exist, safe to access properties
     if (url.expiresAt && url.expiresAt < new Date()) {
       throw new NotFoundException('Short URL has expired');
     }
 
+    // 3. Valid — proceed
     url.clickCount += 1;
     await this.urlRepo.save(url);
     return url.originalUrl;

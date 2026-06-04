@@ -25,6 +25,6 @@ export class Url {
   @CreateDateColumn()
   createdAt!: Date;
 
-  @Column({ default: null })
+  @Column({ type: 'boolean', default: null })
   isActive!: boolean | null;
 }

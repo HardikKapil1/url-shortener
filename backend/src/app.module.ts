@@ -3,9 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppService } from './app.service';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
+import { UrlModule } from './url/url.module';
+import { Url } from './url/url.entity';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
+    UrlModule,
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: (process.env.DB_TYPE as any) || 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -14,6 +19,7 @@ import { AppController } from './app.controller';
       password: process.env.DB_PASSWORD || 'password',
       database: process.env.DB_NAME || 'url_shortener',
       synchronize: true,
+      entities: [Url],
     }),
 
     ThrottlerModule.forRoot({
