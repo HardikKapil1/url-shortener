@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { nanoid } from 'nanoid';
 import Redis from 'ioredis';
+import { Click } from '../clicks/clicks.entity';
 
 @Injectable()
 export class UrlService {
@@ -12,6 +13,8 @@ export class UrlService {
     private urlRepo: Repository<Url>,
     @Inject('REDIS')
     private redis: Redis,
+    @InjectRepository(Click)
+    private clickRepo: Repository<Click>,
   ) {}
 
   /**
@@ -39,20 +42,15 @@ export class UrlService {
    * @param shortCode The short code to look up.
    * @returns A promise resolving to the original URL if found and active, otherwise null.
    * */
-public async redirect(shortCode: string): Promise<string> {
+  public async redirect(shortCode: string, ip: string): Promise<string> {
     const cacheKey = `short:${shortCode}`; // Define it once so they always match
 
     // 1. Check Cache
     const cachedUrl = await this.redis.get(cacheKey);
-    if (cachedUrl) {
-      console.log('Cache hit for short code:', shortCode);
-      return cachedUrl; // Returns early, skipping the DB entirely
-    }
 
     // 2. Database Fallback
     const url = await this.urlRepo.findOne({ where: { shortCode } });
-    console.log('Database lookup for short code:', shortCode);
-    
+
     if (!url || !url.isActive) {
       throw new NotFoundException('Short URL not found or inactive');
     }
@@ -67,7 +65,15 @@ public async redirect(shortCode: string): Promise<string> {
     // 4. Update click count
     url.clickCount += 1;
     await this.urlRepo.save(url);
-    
+
+    // 5. Create a new click record
+    setImmediate(() => {
+      this.clickRepo.save({
+        url: { id: url.id } as Url,
+        ipAddress: ip,
+      });
+    });
+
     return url.originalUrl;
   }
 

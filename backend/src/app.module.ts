@@ -6,6 +6,8 @@ import { AppController } from './app.controller';
 import { UrlModule } from './url/url.module';
 import { Url } from './url/url.entity';
 import { ConfigModule } from '@nestjs/config';
+import { RedisModule } from './redis/redis.module';
+import { Click } from './clicks/clicks.entity';
 
 @Module({
   imports: [
@@ -19,7 +21,7 @@ import { ConfigModule } from '@nestjs/config';
       password: process.env.DB_PASSWORD || 'password',
       database: process.env.DB_NAME || 'url_shortener',
       synchronize: true,
-      entities: [Url],
+      entities: [Url, Click],
     }),
 
     ThrottlerModule.forRoot({

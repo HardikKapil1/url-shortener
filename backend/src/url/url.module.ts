@@ -5,10 +5,11 @@ import { UrlService } from './url.service';
 import { Url } from './url.entity';
 import { ConfigModule } from '@nestjs/config';
 import { RedisModule } from '../redis/redis.module';
+import { Click } from '../clicks/clicks.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Url]),
+    TypeOrmModule.forFeature([Url, Click]),
     ConfigModule.forRoot({ isGlobal: true }),
     RedisModule,
   ],
