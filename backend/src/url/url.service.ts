@@ -85,4 +85,20 @@ export class UrlService {
   public async getUrlByShortCode(shortCode: string): Promise<Url | null> {
     return this.urlRepo.findOne({ where: { shortCode } });
   }
+
+  /**
+   * Deactivates a short URL by its short code.
+   * @param shortCode The short code of the URL to deactivate.
+   * @return A promise that resolves when the URL has been deactivated.
+   * @throws NotFoundException if the short URL does not exist.
+   */
+  public async deactivateShortUrl(shortCode: string): Promise<void> {
+    const url = await this.urlRepo.findOne({ where: { shortCode } });
+    if (!url) {
+      throw new NotFoundException('Short URL not found');
+    }
+    url.isActive = false;
+    await this.urlRepo.save(url);
+    await this.redis.del(`short:${shortCode}`); // Invalidate cache
+  }
 }

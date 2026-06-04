@@ -8,16 +8,21 @@ import {
   HttpStatus,
   NotFoundException,
   Ip,
+  Delete,
 } from '@nestjs/common';
 import { UrlService } from './url.service';
 import { UrlDto } from './url.dto';
 import type { Response } from 'express';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('URLs') 
 @Controller()
 export class UrlController {
   constructor(private readonly urlService: UrlService) {}
 
   @Post('shorten')
+  @ApiOperation({ summary: 'Create a short URL' })
+  @ApiResponse({ status: 201, description: 'The short URL has been created.' })
   async createShortUrl(@Body() createUrlDto: UrlDto) {
     const { originalUrl, expiresAt } = createUrlDto;
     const url = await this.urlService.createShortUrl(originalUrl, expiresAt);
@@ -28,6 +33,9 @@ export class UrlController {
   }
 
   @Get(':shortCode/stats')
+  @ApiOperation({ summary: 'Get statistics for a short URL' })
+  @ApiResponse({ status: 200, description: 'Returns the stats for the URL.' })
+  @ApiResponse({ status: 404, description: 'Short URL not found.' })
   async getStats(@Param('shortCode') shortCode: string) {
     const url = await this.urlService.getUrlByShortCode(shortCode);
     if (!url) {
@@ -44,9 +52,20 @@ export class UrlController {
   }
   
   @Get(':shortCode')
+  @ApiOperation({ summary: 'Redirect to the original URL' })
+  @ApiResponse({ status: 302, description: 'Redirects to the original URL.' })
+  @ApiResponse({ status: 404, description: 'Short URL not found or expired.' })
   async redirect(@Param('shortCode') shortCode: string, @Res() res: Response, @Ip() ip: string) {
     const originalUrl = await this.urlService.redirect(shortCode, ip);
     return res.redirect(HttpStatus.FOUND, originalUrl);
   }
 
+  @Delete(':shortCode')
+  @ApiOperation({ summary: 'Deactivate a short URL' })
+  @ApiResponse({ status: 200, description: 'Short URL deactivated successfully.' })
+  @ApiResponse({ status: 404, description: 'Short URL not found.' })
+  async deactivate(@Param('shortCode') shortCode: string) {
+    await this.urlService.deactivateShortUrl(shortCode);
+    return { message: 'Short URL deactivated successfully' };
+  }
 }
