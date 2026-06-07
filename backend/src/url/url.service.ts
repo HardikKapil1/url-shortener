@@ -46,24 +46,21 @@ export class UrlService {
     const cacheKey = `short:${shortCode}`;
 
     // 1. Check Cache
-    const cachedData = await this.redis.get(cacheKey);
-
-    if (cachedData) {
-      // Parse the full URL object out of Redis
-      const parsedUrl = JSON.parse(cachedData) as Url;
-
-      // Async click tracking (doesn't block the redirect!)
-      setImmediate(() => {
-        // Increment the fast counter
-        this.urlRepo.increment({ id: parsedUrl.id }, 'clickCount', 1);
-        // Save the detailed click record
-        this.clickRepo.save({
-          url: { id: parsedUrl.id } as Url,
-          ipAddress: ip,
+    try {
+      const cachedData = await this.redis.get(cacheKey);
+      if (cachedData) {
+        const parsedUrl = JSON.parse(cachedData) as Url;
+        setImmediate(() => {
+          this.urlRepo.increment({ id: parsedUrl.id }, 'clickCount', 1);
+          this.clickRepo.save({
+            url: { id: parsedUrl.id } as Url,
+            ipAddress: ip,
+          });
         });
-      });
-
-      return parsedUrl.originalUrl;
+        return parsedUrl.originalUrl;
+      }
+    } catch {
+      // Redis down — fall through to DB
     }
 
     // 2. Database Fallback
@@ -77,19 +74,16 @@ export class UrlService {
       throw new NotFoundException('Short URL has expired');
     }
 
-    // 3. Save the FULL object to Cache as JSON string
+    // 3. Save to Cache
     await this.redis.set(cacheKey, JSON.stringify(url), 'EX', 3600);
 
-    // 4. Update click count (awaiting this one since we already loaded the entity)
+    // 4. Update click count
     url.clickCount += 1;
     await this.urlRepo.save(url);
 
-    // 5. Create a new detailed click record
+    // 5. Record click
     setImmediate(() => {
-      this.clickRepo.save({
-        url: { id: url.id } as Url,
-        ipAddress: ip,
-      });
+      this.clickRepo.save({ url: { id: url.id } as Url, ipAddress: ip });
     });
 
     return url.originalUrl;
